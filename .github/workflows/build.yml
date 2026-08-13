@@ -123,6 +123,9 @@ jobs:
       - name: Fetch Dart packages
         run: flutter pub get
 
+      - name: Install cargo-expand (needed by codegen)
+        run: cargo install cargo-expand
+
       - name: Generate Rust <-> Dart bindings
         run: flutter_rust_bridge_codegen generate
 

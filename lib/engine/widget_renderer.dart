@@ -7,7 +7,7 @@ class WidgetRenderer {
     BuildContext context,
     Map<String, Object?> node, {
     required Map<String, String> values,
-    required ValueChanged<String> onInput,
+    required void Function(String id, String value) onInput,
     required void Function(String name) onAction,
   }) {
     final type = node['type'] as String? ?? 'text';

@@ -87,15 +87,15 @@ class PageEngine {
   }
 
   int _luaEngineGet(LuaState ls) {
-    final id = ls.checkString(1);
+    final id = ls.checkString(1) ?? '';
     ls.pop(1);
     ls.pushString(_values[id] ?? '');
     return 1;
   }
 
   int _luaEngineSet(LuaState ls) {
-    final id = ls.checkString(1);
-    final value = ls.checkString(2);
+    final id = ls.checkString(1) ?? '';
+    final value = ls.checkString(2) ?? '';
     ls.pop(2);
     _values[id] = value;
     onUpdate?.call(id, value);
@@ -103,22 +103,22 @@ class PageEngine {
   }
 
   int _luaRustGreet(LuaState ls) {
-    final name = ls.checkString(1);
+    final name = ls.checkString(1) ?? '';
     ls.pop(1);
     ls.pushString(greet(name: name));
     return 1;
   }
 
   int _luaRustSum(LuaState ls) {
-    final a = ls.checkInteger(1);
-    final b = ls.checkInteger(2);
+    final a = ls.checkInteger(1) ?? 0;
+    final b = ls.checkInteger(2) ?? 0;
     ls.pop(2);
     ls.pushInteger(sum(a: a, b: b));
     return 1;
   }
 
   int _luaRustFibonacci(LuaState ls) {
-    final n = ls.checkInteger(1);
+    final n = ls.checkInteger(1) ?? 0;
     ls.pop(1);
     ls.pushInteger(fibonacci(n: n));
     return 1;

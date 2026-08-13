@@ -12,18 +12,18 @@ pub fn greet(name: String) -> String {
 
 /// Suma dos enteros. Ejemplo de lógica de negocio en Rust.
 #[flutter_rust_bridge::frb(sync)]
-pub fn sum(a: i64, b: i64) -> i64 {
+pub fn sum(a: i32, b: i32) -> i32 {
     a + b
 }
 
 /// Fibonacci iterativo (rápido). Ejemplo de cálculo pesado en Rust.
 #[flutter_rust_bridge::frb(sync)]
-pub fn fibonacci(n: u32) -> u64 {
+pub fn fibonacci(n: u32) -> u32 {
     match n {
         0 => 0,
         1 => 1,
         _ => {
-            let (mut a, mut b) = (0u64, 1u64);
+            let (mut a, mut b) = (0u32, 1u32);
             for _ in 2..=n {
                 let next = a + b;
                 a = b;
