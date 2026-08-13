@@ -5,20 +5,17 @@ import 'package:http/http.dart' as http;
 import 'package:lua_dardo_plus/lua.dart';
 import 'package:pr_app/src/rust/api/simple.dart';
 
-/// Página ya parseada: título + lista de nodos de UI.
-class PageModel {
-  final String title;
-  final List<Map<String, Object?>> body;
+import '../widgets/gui_node.dart';
+import 'page_model.dart';
 
-  PageModel(this.title, this.body);
-}
-
-/// Motor de páginas: ejecuta scripts Lua (locales o descargados) que
-/// describen la GUI. Lua puede:
-///   - engine_get(id)    -> leer el valor actual de un widget
-///   - engine_set(id, v) -> actualizar un widget (re-render)
-///   - rust_greet/sum/fibonacci -> llamar a las librerías Rust del motor
-class PageEngine {
+/// Controlador Lua: lee la página desde Lua y controla los bucles (recorrido
+/// de `page.body`) y las llamadas (handlers Lua y funciones Rust).
+///
+/// Lua puede llamar a:
+///   - engine_get(id)               -> leer el valor actual de un widget
+///   - engine_set(id, valor)        -> actualizar un widget (re-render)
+///   - rust_greet / rust_sum / rust_fibonacci -> llamar a Rust
+class LuaController {
   late LuaState _lua;
   final Map<String, String> _values = {};
 
@@ -66,13 +63,16 @@ class PageEngine {
     return 'https://raw.githubusercontent.com/${match.group(1)}/${match.group(3)}';
   }
 
-  /// Ejecuta el script Lua y parsea la tabla global `page`.
+  /// Ejecuta el script Lua, recorre `page.body` (bucle) y devuelve el modelo.
   PageModel load(String code) {
     _values.clear();
     _lua = LuaState.newState();
     _lua.openLibs();
     _registerGlobals();
-    _lua.loadString(code);
+    final status = _lua.loadString(code);
+    if (status != ThreadStatus.luaOk) {
+      throw Exception('El script Lua no compiló (status: $status)');
+    }
     _lua.call(0, 0);
     return _parsePage();
   }
@@ -149,49 +149,83 @@ class PageEngine {
 
   // ---------------------------------------------------------------- parsing
 
+  /// Lee la tabla global `page` y recorre `page.body` (bucle sobre
+  /// `body_count`) convirtiendo cada nodo en un [GuiNode].
   PageModel _parsePage() {
     _lua.getGlobal('page');
-    final title = _getFieldStr('title') ?? 'Página';
-    final count = _getFieldInt('body_count') ?? 0;
+    if (!_lua.isTable(-1)) {
+      final got = _lua.isNil(-1) ? 'nil' : _lua.typeName2(-1);
+      _lua.pop(1);
+      throw Exception('El script no definió la tabla global "page" ($got)');
+    }
+    final title = _field(-1, 'title') as String? ?? 'Página';
+    final count = (_field(-1, 'body_count') as num?)?.toInt() ?? 0;
 
-    final body = <Map<String, Object?>>[];
     _lua.getField(-1, 'body');
+    final body = <GuiNode>[];
     for (var i = 1; i <= count; i++) {
       _lua.getI(-1, i);
-      body.add(<String, Object?>{
-        'type': _getFieldStr('type') ?? 'text',
-        'id': _getFieldStr('id'),
-        'text': _getFieldStr('text'),
-        'label': _getFieldStr('label'),
-        'value': _getFieldStr('value'),
-        'on_click': _getFieldStr('on_click'),
-      });
+      body.add(GuiNode.fromMap(_readNodeMap()));
       _lua.pop(1);
     }
     _lua.pop(1); // body
     _lua.pop(1); // page
-    return PageModel(title, body);
+    return PageModel(title: title, body: body);
   }
 
-  String? _getFieldStr(String key) {
-    _lua.getField(-1, key);
-    String? result;
+  /// Lee los campos de un nodo (la tabla en el tope de la pila) a un mapa.
+  Map<String, Object?> _readNodeMap() {
+    final m = <String, Object?>{};
+    for (final k in [
+      'type', 'id', 'text', 'label', 'value', 'on_click', 'align',
+      'color', 'bg_color', 'border_color', 'src', 'fit',
+    ]) {
+      final v = _field(-1, k);
+      if (v != null) m[k] = v;
+    }
+    for (final k in ['width', 'height', 'padding', 'radius', 'border_width', 'space']) {
+      final v = _field(-1, k);
+      if (v != null) m[k] = v;
+    }
+    for (final k in ['bold', 'italic']) {
+      final v = _field(-1, k);
+      if (v != null) m[k] = v;
+    }
+    final font = _fieldTable(-1, 'font');
+    if (font != null) m['font'] = font;
+    return m;
+  }
+
+  /// Lee un campo escalar (string/número/booleano) de la tabla en `idx`.
+  Object? _field(int idx, String key) {
+    _lua.getField(idx, key);
+    Object? v;
     if (_lua.isString(-1)) {
-      result = _lua.toStr(-1);
+      v = _lua.toStr(-1);
+    } else if (_lua.isInteger(-1)) {
+      v = _lua.toInteger(-1);
+    } else if (_lua.isNumber(-1)) {
+      v = _lua.toNumber(-1);
+    } else if (_lua.isBoolean(-1)) {
+      v = _lua.toBoolean(-1);
     }
     _lua.pop(1);
-    return result;
+    return v;
   }
 
-  int? _getFieldInt(String key) {
-    _lua.getField(-1, key);
-    int? result;
-    if (_lua.isInteger(-1)) {
-      result = _lua.toInteger(-1);
-    } else if (_lua.isNumber(-1)) {
-      result = _lua.toNumber(-1).toInt();
+  /// Lee un campo que es una sub-tabla (p. ej. `font`) y devuelve su mapa.
+  Map<String, Object?>? _fieldTable(int idx, String key) {
+    _lua.getField(idx, key);
+    if (!_lua.isTable(-1)) {
+      _lua.pop(1);
+      return null;
+    }
+    final m = <String, Object?>{};
+    for (final k in ['family', 'size', 'bold', 'italic', 'color']) {
+      final v = _field(-1, k);
+      if (v != null) m[k] = v;
     }
     _lua.pop(1);
-    return result;
+    return m;
   }
 }
