@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 
 import 'gui_button.dart';
 import 'gui_divider.dart';
@@ -8,6 +9,7 @@ import 'gui_rect_image.dart';
 import 'gui_spacer.dart';
 import 'gui_text.dart';
 import 'gui_text_edit.dart';
+import 'gui_video.dart';
 
 /// Convierte un [GuiNode] (descrito en Lua) en su widget Flutter.
 /// Flutter siempre dibuja; Lua decide estructura, estilo y layout.
@@ -18,6 +20,7 @@ class GuiRenderer {
     required Map<String, String> values,
     required void Function(String id, String value) onInput,
     required void Function(String name) onAction,
+    VideoController? videoController,
   }) {
     return switch (node) {
       GuiText() => _text(context, node as GuiText, values),
@@ -27,6 +30,7 @@ class GuiRenderer {
       GuiRectImage() => _rectImage(node as GuiRectImage),
       GuiDivider() => _divider(context, node as GuiDivider),
       GuiSpacer() => _spacer(node as GuiSpacer),
+      GuiVideo() => _video(node as GuiVideo, videoController),
       _ => const SizedBox.shrink(),
     };
   }
@@ -181,6 +185,19 @@ class GuiRenderer {
 
   static Widget _spacer(GuiSpacer n) =>
       _applyLayout(n, SizedBox(height: n.space));
+
+  // --------------------------------------------------------------- video
+
+  static Widget _video(GuiVideo n, VideoController? videoController) {
+    final s = n.style;
+    final child = videoController == null
+        ? Container(
+            color: Colors.black12,
+            child: const Center(child: Text('reproductor no disponible')),
+          )
+        : Video(controller: videoController);
+    return _applyLayout(n, child);
+  }
 
   // ------------------------------------------------------------- helpers
 

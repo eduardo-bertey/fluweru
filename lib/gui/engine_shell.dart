@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:media_kit/media_kit.dart';
 
 import '../lua/lua_controller.dart';
 import '../lua/page_model.dart';
+import '../lua/page_registry.dart';
+import '../media/media_player.dart';
 import '../widgets/gui_renderer.dart';
 
 /// Shell de la app: barra de URL + lista de widgets definidos por Lua.
@@ -26,29 +29,50 @@ class EngineShell extends StatefulWidget {
 }
 
 class _EngineShellState extends State<EngineShell> {
-  static const _bundledPage = 'assets/pages/demo.lua';
-
+  late final MediaPlayer _mediaPlayer;
   final _urlController = TextEditingController();
   final _controller = LuaController();
 
   PageModel? _page;
+  String? _pageName;
   bool _loading = false;
   String? _error;
 
   @override
   void initState() {
     super.initState();
+    MediaKit.ensureInitialized();
+    _mediaPlayer = MediaPlayer();
+    _controller.mediaPlayer = _mediaPlayer;
     _controller.onUpdate = (_, __) => setState(() {});
-    _loadBundled();
+    _controller.onNavigate = _loadPageByName;
+    _mediaPlayer.onChanged = () {
+      if (mounted) setState(() {});
+    };
+    _mediaPlayer.onPush = (id, value) {
+      _controller.setInputValue(id, value);
+      if (mounted) setState(() {});
+    };
+    _loadPageByName('demo');
   }
 
-  Future<void> _loadBundled() async {
+  Future<void> _loadPageByName(String name) async {
+    final asset = PageRegistry.assetFor(name);
+    if (asset == null) {
+      setState(() => _error = 'Página desconocida: $name');
+      return;
+    }
+    await _loadFromAsset(asset);
+    if (mounted) setState(() => _pageName = name);
+  }
+
+  Future<void> _loadFromAsset(String asset) async {
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
-      final page = await _controller.loadFromAsset(_bundledPage);
+      final page = await _controller.loadFromAsset(asset);
       if (!mounted) return;
       setState(() => _page = page);
     } catch (e) {
@@ -69,7 +93,10 @@ class _EngineShellState extends State<EngineShell> {
     try {
       final page = await _controller.loadFromUrl(url);
       if (!mounted) return;
-      setState(() => _page = page);
+      setState(() {
+        _page = page;
+        _pageName = null;
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = 'No se pudo cargar: $e');
@@ -82,13 +109,23 @@ class _EngineShellState extends State<EngineShell> {
   void dispose() {
     _urlController.dispose();
     _controller.dispose();
+    _mediaPlayer.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_page?.title ?? 'pr_app')),
+      appBar: AppBar(
+        title: Text(_page?.title ?? 'pr_app'),
+        actions: [
+          for (final name in PageRegistry.names)
+            TextButton(
+              onPressed: () => _loadPageByName(name),
+              child: Text(name),
+            ),
+        ],
+      ),
       body: Column(
         children: [
           Padding(
@@ -113,7 +150,7 @@ class _EngineShellState extends State<EngineShell> {
                 ),
                 const SizedBox(width: 8),
                 OutlinedButton(
-                  onPressed: _loading ? null : _loadBundled,
+                  onPressed: _loading ? null : () => _loadPageByName('demo'),
                   child: const Text('Demo'),
                 ),
               ],
@@ -143,7 +180,9 @@ class _EngineShellState extends State<EngineShell> {
                             _controller.setInputValue(id, value);
                             setState(() {});
                           },
-                          onAction: (name) => _controller.invokeHandler(name),
+                          onAction: (name) =>
+                              _controller.invokeHandler(name),
+                          videoController: _mediaPlayer.videoController,
                         ),
                     ],
                   ),

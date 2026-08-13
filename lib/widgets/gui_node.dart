@@ -6,6 +6,7 @@ import 'gui_rect_image.dart';
 import 'gui_spacer.dart';
 import 'gui_text.dart';
 import 'gui_text_edit.dart';
+import 'gui_video.dart';
 
 /// Estilo/layout común a todo nodo de la GUI, leído desde Lua.
 typedef NodeStyle = ({
@@ -42,6 +43,7 @@ abstract class GuiNode {
       'image' || 'rect_image' => GuiRectImage.fromMap(m),
       'divider' => GuiDivider.fromMap(m),
       'spacer' => GuiSpacer.fromMap(m),
+      'video' => GuiVideo.fromMap(m),
       _ => GuiText.fromMap(m),
     };
   }

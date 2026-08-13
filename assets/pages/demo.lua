@@ -1,11 +1,14 @@
 -- Pagina demo: la GUI se define aqui, en Lua.
--- Widgets: heading | text | input | button | divider | spacer | rect | rect_image
+-- Widgets: heading | text | input | button | divider | spacer | rect | rect_image | video
 -- Layout/estilo: align, width, height, padding, color, bg_color, radius,
 --                border_color, border_width, font = { family, size, bold, italic, color }
 -- Handlers: funciones Lua que usan el motor:
 --   engine_get(id)             -> leer valor de un widget
 --   engine_set(id, valor)      -> actualizar un widget (re-render)
+--   navigate("pagina")         -> cambiar de pagina (demo | player)
 --   rust_greet / rust_sum / rust_fibonacci -> llamar a Rust
+--   player_config()            -> opciones con que se compilo libmpv (debe decir --enable-lgpl)
+--   player_pick()              -> abrir selector de archivos y reproducir
 
 page = {
   title = "Demo Lua + Rust",
@@ -44,6 +47,16 @@ page = {
       font = { size = 16 } },
     { type = "text", id = "result", text = "Resultado: -",
       font = { size = 16 } },
+
+    { type = "divider", height = 26 },
+
+    { type = "text", text = "Paginas:", align = "center",
+      font = { size = 15, bold = true, color = "#1976d2" } },
+
+    { type = "button", text = "Ir al reproductor (pagina 2)", on_click = "ir_player" },
+    { type = "button", text = "Comprobar LGPL de libmpv", on_click = "check_mpv" },
+    { type = "text", id = "mpv_cfg", text = "mpv-configuration: -",
+      font = { size = 13 } },
   },
 
   handlers = {
@@ -59,6 +72,13 @@ page = {
     fib = function()
       local r = rust_fibonacci(40)
       engine_set("result", "Fibonacci(40) = " .. tostring(r))
+    end,
+    ir_player = function()
+      navigate("player")
+    end,
+    check_mpv = function()
+      local cfg = player_config()
+      engine_set("mpv_cfg", cfg)
     end,
   },
 }
