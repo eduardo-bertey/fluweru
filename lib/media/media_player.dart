@@ -3,17 +3,11 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
 /// Reproductor de audio/video basado en media_kit (libmpv + FFmpeg, LGPL).
-///
-/// Expone operaciones asincrónicas y un caché de estado (strings) para que
-/// Lua (síncrono) pueda leer el estado sin bloquearse. Los resultados se
-/// empujan a la UI vía [onPush] (id + valor) para que los widgets con `id`
-/// se re-rendericen automáticamente.
 class MediaPlayer {
   late final Player _player;
   late final VideoController _videoController;
 
   String _status = 'Sin archivo';
-  String _config = '';
   String _current = '';
 
   /// Empuja un (id, valor) a la GUI cuando algo cambia (config, status...).
@@ -25,13 +19,11 @@ class MediaPlayer {
   VideoController get videoController => _videoController;
   String get status => _status;
   String get current => _current;
-  String get config => _config;
 
   MediaPlayer() {
     _player = Player();
     _videoController = VideoController(_player);
     _subscribe();
-    _refreshConfig();
   }
 
   /// Suscribe streams de libmpv para mantener [_status] al día.
@@ -56,19 +48,6 @@ class MediaPlayer {
       _push('player_status', _status);
     });
   }
-
-  /// Pide a libmpv con qué opciones se compiló (debe mostrar --enable-lgpl).
-  Future<void> _refreshConfig() async {
-    try {
-      _config = await _player.getProperty('mpv-configuration');
-    } catch (e) {
-      _config = 'Error al leer config: $e';
-    }
-    _push('mpv_cfg', _config);
-  }
-
-  /// Recarga mpv-configuration (para el botón de verificación).
-  Future<void> checkConfiguration() => _refreshConfig();
 
   /// Abre el selector de archivos de Android y reproduce el archivo elegido.
   Future<void> pickAndPlay() async {

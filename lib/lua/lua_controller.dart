@@ -111,7 +111,6 @@ class LuaController {
     _registerSync('rust_sum', _luaRustSum);
     _registerSync('rust_fibonacci', _luaRustFibonacci);
     if (mediaPlayer != null) {
-      _registerSync('player_config', _luaPlayerConfig);
       _registerSync('player_pick', _luaPlayerPick);
       _registerSync('player_open', _luaPlayerOpen);
       _registerSync('player_play', _luaPlayerPlay);
@@ -176,15 +175,6 @@ class LuaController {
   }
 
   // -------------------------------------------------------------- player
-
-  /// Recarga y devuelve `mpv-configuration` (comprobar que diga --enable-lgpl).
-  int _luaPlayerConfig(LuaState ls) {
-    final p = mediaPlayer!;
-    ls.pop(0);
-    p.checkConfiguration();
-    ls.pushString(p.config);
-    return 1;
-  }
 
   /// Abre el selector de archivos de Android y reproduce lo elegido.
   int _luaPlayerPick(LuaState ls) {

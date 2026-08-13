@@ -7,7 +7,6 @@
 --   engine_set(id, valor)      -> actualizar un widget (re-render)
 --   navigate("pagina")         -> cambiar de pagina (demo | player)
 --   rust_greet / rust_sum / rust_fibonacci -> llamar a Rust
---   player_config()            -> opciones con que se compilo libmpv (debe decir --enable-lgpl)
 --   player_pick()              -> abrir selector de archivos y reproducir
 
 page = {
@@ -54,9 +53,6 @@ page = {
       font = { size = 15, bold = true, color = "#1976d2" } },
 
     { type = "button", text = "Ir al reproductor (pagina 2)", on_click = "ir_player" },
-    { type = "button", text = "Comprobar LGPL de libmpv", on_click = "check_mpv" },
-    { type = "text", id = "mpv_cfg", text = "mpv-configuration: -",
-      font = { size = 13 } },
   },
 
   handlers = {
@@ -75,10 +71,6 @@ page = {
     end,
     ir_player = function()
       navigate("player")
-    end,
-    check_mpv = function()
-      local cfg = player_config()
-      engine_set("mpv_cfg", cfg)
     end,
   },
 }
