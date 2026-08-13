@@ -79,13 +79,18 @@ class PageEngine {
 
   /// Invoca un handler (función Lua) definido en `page.handlers`.
   void invokeHandler(String name) {
-    _lua.getGlobal('handlers');
+    _lua.getGlobal('page');
+    _lua.getField(-1, 'handlers');
+    if (!_lua.isTable(-1)) {
+      _lua.pop(2); // handlers no definido + page
+      return;
+    }
     _lua.getField(-1, name);
     if (_lua.isFunction(-1)) {
       _lua.pCall(0, 0, 0);
-      _lua.pop(1); // handlers
+      _lua.pop(2); // fn + handlers + page
     } else {
-      _lua.pop(2); // fn no-función + handlers
+      _lua.pop(3); // fn no-función + handlers + page
     }
   }
 
