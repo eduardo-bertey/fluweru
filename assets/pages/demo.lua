@@ -15,7 +15,7 @@ page = {
     { type = "button", text = "Sumar 21 + 21 (Rust)", on_click = "sumar" },
     { type = "button", text = "Fibonacci(40) (Rust)", on_click = "fib" },
     { type = "divider" },
-    { type = "text",   id = "greeting", text = "Saludo pendiente…" },
+    { type = "text",   id = "greeting", text = "Saludo pendiente..." },
     { type = "text",   id = "result",   text = "Resultado: -" },
   },
 

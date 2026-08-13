@@ -41,11 +41,29 @@ class PageEngine {
 
   /// Carga una página Lua desde una URL (script descargado de la web).
   Future<PageModel> loadFromUrl(String url) async {
+    url = _normalizeUrl(url);
     final res = await http.get(Uri.parse(url));
     if (res.statusCode != 200) {
       throw Exception('HTTP ${res.statusCode} al cargar $url');
     }
-    return load(utf8.decode(res.bodyBytes));
+    final body = utf8.decode(res.bodyBytes);
+    if (body.trimLeft().startsWith('<')) {
+      throw Exception(
+        'La URL devolvió HTML, no código Lua. '
+        'Usa la URL "raw" del archivo, p. ej. '
+        'https://raw.githubusercontent.com/eduardo-bertey/fluweru/main/assets/pages/demo.lua',
+      );
+    }
+    return load(body);
+  }
+
+  /// Convierte URLs de GitHub (blob o raw) a raw.githubusercontent.com.
+  String _normalizeUrl(String url) {
+    final match = RegExp(
+      r'^https?://github\.com/([^/]+/[^/]+)/(blob|raw)/(.+)$',
+    ).firstMatch(url);
+    if (match == null) return url;
+    return 'https://raw.githubusercontent.com/${match.group(1)}/${match.group(3)}';
   }
 
   /// Ejecuta el script Lua y parsea la tabla global `page`.

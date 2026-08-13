@@ -13,6 +13,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # DESHABILITADOS temporalmente (el CI solo compila Android por ahora).
+          # Para reactivar: quita el comentario y borra la línea "android".
+          # - target: linux
+          #   os: ubuntu-latest
+          #   command: flutter build linux --release
+          # - target: windows
+          #   os: windows-latest
+          #   command: flutter build windows --release
           - target: android
             os: ubuntu-latest
             command: flutter build apk --release
