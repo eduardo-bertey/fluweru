@@ -152,7 +152,7 @@ class PageEngine {
     final body = <Map<String, Object?>>[];
     _lua.getField(-1, 'body');
     for (var i = 1; i <= count; i++) {
-      _lua.getField(-1, '$i');
+      _lua.getI(-1, i);
       body.add(<String, Object?>{
         'type': _getFieldStr('type') ?? 'text',
         'id': _getFieldStr('id'),
