@@ -6,48 +6,44 @@
 --   player_play() / player_pause() / player_toggle() / player_stop()
 --   player_status()   -> estado actual (texto)
 
-page = {
-  title = "Reproductor (pagina 2)",
+page.title = "Reproductor (pagina 2)"
 
-  body = {
-    { type = "rect", text = "Reproductor media_kit (libmpv)",
-      bg_color = "#1976d2", radius = 12, padding = 14, align = "center",
-      font = { size = 18, bold = true, color = "white" } },
+gui_rect({
+  text = "Reproductor media_kit (libmpv)",
+  bg_color = "#1976d2", radius = 12, padding = 14, align = "center",
+  font = { size = 18, bold = true, color = "white" },
+})
 
-    { type = "spacer", space = 10 },
+gui_spacer({ space = 10 })
 
-    { type = "video", height = 220, align = "center" },
+gui_video({ height = 220, align = "center" })
 
-    { type = "spacer", space = 10 },
+gui_spacer({ space = 10 })
 
-    { type = "button", text = "Abrir archivo de Android", on_click = "abrir" },
-    { type = "button", text = "Reproducir / Pausar", on_click = "toggle" },
-    { type = "button", text = "Detener", on_click = "detener" },
+gui_button({ text = "Abrir archivo de Android", on_click = "abrir" })
+gui_button({ text = "Reproducir / Pausar", on_click = "toggle" })
+gui_button({ text = "Detener", on_click = "detener" })
 
-    { type = "divider", height = 24 },
+gui_divider({ height = 24 })
 
-    { type = "text", id = "player_status", text = "Estado: sin archivo",
-      font = { size = 14 } },
+gui_text({ id = "player_status", text = "Estado: sin archivo", font = { size = 14 } })
 
-    { type = "divider", height = 24 },
+gui_divider({ height = 24 })
 
-    { type = "button", text = "< Volver a la pagina 1 (Rust)", on_click = "volver" },
-  },
+gui_button({ text = "< Volver a la pagina 1 (Rust)", on_click = "volver" })
 
-  handlers = {
-    abrir = function()
-      player_pick()
-    end,
-    toggle = function()
-      player_toggle()
-    end,
-    detener = function()
-      player_stop()
-    end,
-    volver = function()
-      navigate("demo")
-    end,
-  },
-}
+handler("abrir", function()
+  player_pick()
+end)
 
-page.body_count = #page.body
+handler("toggle", function()
+  player_toggle()
+end)
+
+handler("detener", function()
+  player_stop()
+end)
+
+handler("volver", function()
+  navigate("demo")
+end)

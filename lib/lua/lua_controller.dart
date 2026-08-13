@@ -15,10 +15,42 @@ import 'page_model.dart';
 /// Lua puede llamar a:
 ///   - engine_get(id)               -> leer el valor actual de un widget
 ///   - engine_set(id, valor)        -> actualizar un widget (re-render)
+///   - navigate("página")           -> cambiar de página
+///   - gui_* (guión inyectado)      -> construir la GUI llamando funciones
 ///   - rust_greet / rust_sum / rust_fibonacci -> llamar a Rust
 class LuaController {
   late LuaState _lua;
   final Map<String, String> _values = {};
+
+  /// Guión inyectado antes del script del usuario. Define la API `gui_*`
+  /// (Godot-like): Lua construye la GUI llamando funciones en vez de
+  /// declarar tablas con `type = "string"`.
+  static const _prelude = '''
+-- Motor pr_app: API de widgets (inyectada antes de tu script).
+page = { title = "Pagina", body = {}, handlers = {} }
+
+local function gui_add(tipo, props)
+  props = props or {}
+  props.type = tipo
+  table.insert(page.body, props)
+  page.body_count = #page.body
+  return props
+end
+
+gui_heading = function(p) return gui_add("heading", p) end
+gui_text    = function(p) return gui_add("text", p) end
+gui_input   = function(p) return gui_add("input", p) end
+gui_button  = function(p) return gui_add("button", p) end
+gui_rect    = function(p) return gui_add("rect", p) end
+gui_image   = function(p) return gui_add("rect_image", p) end
+gui_divider = function(p) return gui_add("divider", p) end
+gui_spacer  = function(p) return gui_add("spacer", p) end
+gui_video   = function(p) return gui_add("video", p) end
+
+function handler(nombre, fn)
+  page.handlers[nombre] = fn
+end
+''';
 
   /// Reproductor compartido (media_kit) expuesto a Lua.
   MediaPlayer? mediaPlayer;
@@ -76,7 +108,7 @@ class LuaController {
     _lua = LuaState.newState();
     _lua.openLibs();
     _registerGlobals();
-    final status = _lua.loadString(code);
+    final status = _lua.loadString(_prelude + code);
     if (status != ThreadStatus.luaOk) {
       throw Exception('El script Lua no compiló (status: $status)');
     }
@@ -275,12 +307,14 @@ class LuaController {
   Object? _field(int idx, String key) {
     _lua.getField(idx, key);
     Object? v;
-    if (_lua.isString(-1)) {
-      v = _lua.toStr(-1);
-    } else if (_lua.isInteger(-1)) {
-      v = _lua.toInteger(-1);
+    // OJO: en lua_dardo `isString` devuelve true también para números, así
+    // que los números deben chequearse ANTES que los strings.
+    if (_lua.isInteger(-1)) {
+      v = _lua.toIntegerX(-1);
     } else if (_lua.isNumber(-1)) {
-      v = _lua.toNumber(-1);
+      v = _lua.toNumberX(-1);
+    } else if (_lua.isString(-1)) {
+      v = _lua.toStr(-1);
     } else if (_lua.isBoolean(-1)) {
       v = _lua.toBoolean(-1);
     }
