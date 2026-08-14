@@ -67,6 +67,7 @@ pub fn laurelia_load_model(ckpt_path: String, tokenizer_path: String) -> bool {
         Err(_) => return false,
     };
 
+    st.eos_token_id = tokenizer.eos_token_id();
     st.model = Some(model);
     st.tokenizer = Some(tokenizer);
     true
