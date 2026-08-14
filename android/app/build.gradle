@@ -81,7 +81,7 @@ android.sourceSets {
 }
 
 tasks.whenTaskAdded { task ->
-    if (task.name == "preBuild" || task.name == "mergeReleaseNativeLibs" || task.name == "mergeDebugNativeLibs") {
+    if (task.name == "preBuild" || task.name.endsWith("JniLibFolders") || task.name == "mergeReleaseNativeLibs" || task.name == "mergeDebugNativeLibs") {
         task.dependsOn(copyLibCxx)
     }
 }
