@@ -47,7 +47,7 @@ flutter {
 // (candle/tokenizers usan C++). Godot lo empaqueta siempre, pero Flutter no,
 // asi que lo copiamos desde el NDK a jniLibs para que el APK incluya la lib
 // y System.loadLibrary("rust_lib_pr_app") no falle al iniciar.
-def ndkDir = android.ndkDirectory.getAsFile().get().toString()
+def ndkDir = android.ndkDirectory.toString()
 
 android.sourceSets {
     main {
