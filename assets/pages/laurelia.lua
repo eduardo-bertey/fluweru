@@ -1,0 +1,74 @@
+-- Pagina 3: Chat LLM Laurelia (descarga por HTTP + inferencia en Rust).
+-- Flujo igual al ejemplo de Godot:
+--   1. laurelia_download()   -> baja checkpoint.pt + tokenizer.json de HF
+--   2. laurelia_load()       -> carga el modelo en Rust (Candle)
+--   3. laurelia_generate()   -> genera texto; el resultado va a "laurelia_out"
+-- Globals disponibles:
+--   laurelia_download() / laurelia_load() / laurelia_unload()
+--   laurelia_generate(prompt, max_tokens)
+--   laurelia_count_tokens(texto) / laurelia_vocab() / laurelia_is_loaded()
+--   laurelia_status()        -> estado actual (texto)
+
+page.title = "Chat Laurelia (pagina 3)"
+
+gui_rect({
+  text = "LLM Laurelia en Rust (Candle)",
+  bg_color = "#6a1b9a", radius = 12, padding = 14, align = "center",
+  font = { size = 18, bold = true, color = "white" },
+})
+
+gui_spacer({ space = 10 })
+
+gui_button({ text = "Descargar modelo (HTTP)", on_click = "descargar" })
+gui_button({ text = "Cargar en Rust", on_click = "cargar" })
+gui_button({ text = "Liberar modelo", on_click = "liberar" })
+
+gui_divider({ height = 24 })
+
+gui_input({ id = "prompt", label = "Prompt", value = "Hola, como estas?" })
+
+gui_button({ text = "Generar", on_click = "generar" })
+
+gui_text({ id = "laurelia_out", text = "Resultado aparecera aqui", font = { size = 14 } })
+
+gui_divider({ height = 24 })
+
+gui_text({ id = "laurelia_status", text = "Estado: listo", font = { size = 13 } })
+
+gui_button({ text = "Contar tokens del prompt", on_click = "contar" })
+gui_text({ id = "token_count", text = "Tokens: -", font = { size = 13 } })
+
+gui_divider({ height = 24 })
+
+gui_button({ text = "< Volver a la pagina 1 (Rust)", on_click = "volver" })
+
+handler("descargar", function()
+  laurelia_download()
+end)
+
+handler("cargar", function()
+  laurelia_load()
+end)
+
+handler("liberar", function()
+  laurelia_unload()
+end)
+
+handler("generar", function()
+  local prompt = engine_get("prompt")
+  if prompt == "" then
+    engine_set("laurelia_out", "Escribe un prompt primero")
+    return
+  end
+  laurelia_generate(prompt, 50)
+end)
+
+handler("contar", function()
+  local prompt = engine_get("prompt")
+  local n = laurelia_count_tokens(prompt)
+  engine_set("token_count", "Tokens: " .. tostring(n))
+end)
+
+handler("volver", function()
+  navigate("demo")
+end)

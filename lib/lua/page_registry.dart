@@ -6,6 +6,7 @@ class PageRegistry {
   static const Map<String, String> pages = {
     'demo': 'assets/pages/demo.lua',
     'player': 'assets/pages/player.lua',
+    'laurelia': 'assets/pages/laurelia.lua',
   };
 
   static String? assetFor(String name) => pages[name];

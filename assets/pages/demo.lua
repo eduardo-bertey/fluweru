@@ -56,6 +56,7 @@ gui_text({
 })
 
 gui_button({ text = "Ir al reproductor (pagina 2)", on_click = "ir_player" })
+gui_button({ text = "Chat Laurelia (pagina 3)", on_click = "ir_laurelia" })
 
 handler("saludar", function()
   local nombre = engine_get("name")
@@ -75,4 +76,8 @@ end)
 
 handler("ir_player", function()
   navigate("player")
+end)
+
+handler("ir_laurelia", function()
+  navigate("laurelia")
 end)

@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:lua_dardo_plus/lua.dart';
 import 'package:pr_app/src/rust/api/simple.dart';
 
+import '../ai/laurelia_chat.dart';
 import '../media/media_player.dart';
 import '../widgets/gui_node.dart';
 import 'page_model.dart';
@@ -54,6 +55,9 @@ end
 
   /// Reproductor compartido (media_kit) expuesto a Lua.
   MediaPlayer? mediaPlayer;
+
+  /// Chat LLM Laurelia (descarga por HTTP + inferencia en Rust) expuesto a Lua.
+  LaureliaChat? laureliaChat;
 
   /// Llamado por `navigate()` para cambiar de página.
   void Function(String page)? onNavigate;
@@ -150,6 +154,16 @@ end
       _registerSync('player_toggle', _luaPlayerToggle);
       _registerSync('player_stop', _luaPlayerStop);
       _registerSync('player_status', _luaPlayerStatus);
+    }
+    if (laureliaChat != null) {
+      _registerSync('laurelia_download', _luaLaureliaDownload);
+      _registerSync('laurelia_load', _luaLaureliaLoad);
+      _registerSync('laurelia_generate', _luaLaureliaGenerate);
+      _registerSync('laurelia_count_tokens', _luaLaureliaCountTokens);
+      _registerSync('laurelia_status', _luaLaureliaStatus);
+      _registerSync('laurelia_is_loaded', _luaLaureliaIsLoaded);
+      _registerSync('laurelia_vocab', _luaLaureliaVocab);
+      _registerSync('laurelia_unload', _luaLaureliaUnload);
     }
   }
 
@@ -252,6 +266,98 @@ end
     ls.pop(0);
     ls.pushString(mediaPlayer!.status);
     return 1;
+  }
+
+  // -------------------------------------------------------------- laurelia
+
+  /// Descarga el modelo por HTTP (async). El progreso re-renderiza la UI.
+  int _luaLaureliaDownload(LuaState ls) {
+    ls.pop(0);
+    laureliaChat!.download().then((_) => onUpdate?.call('laurelia_status', ''));
+    return 0;
+  }
+
+  /// Carga el modelo descargado en Rust.
+  int _luaLaureliaLoad(LuaState ls) {
+    ls.pop(0);
+    laureliaChat!.load().then((_) => onUpdate?.call('laurelia_status', ''));
+    return 0;
+  }
+
+  /// Genera texto con el prompt del argumento 1. El resultado queda en
+  /// `laurelia_out` (lo muestra un gui_text con id "laurelia_out").
+  int _luaLaureliaGenerate(LuaState ls) {
+    final prompt = ls.checkString(1) ?? '';
+    final maxTokens = ls.checkInteger(2) ?? 50;
+    ls.pop(2);
+    _values['laurelia_out'] = 'Generando…';
+    onUpdate?.call('laurelia_out', 'Generando…');
+    laureliaChat!.generate(prompt, maxNewTokens: maxTokens).then((s) {
+      _values['laurelia_out'] = s;
+      onUpdate?.call('laurelia_out', s);
+    });
+    return 0;
+  }
+
+  /// Devuelve la cantidad de tokens del texto (o -1 si no hay tokenizer).
+  int _luaLaureliaCountTokens(LuaState ls) {
+    final text = ls.checkString(1) ?? '';
+    ls.pop(1);
+    final n = laureliaChat!.countTokens(text);
+    n.then((v) {
+      _lastTokenCount = v;
+      onUpdate?.call('laurelia_status', '');
+    });
+    ls.pushInteger(_lastTokenCount);
+    return 1;
+  }
+
+  /// Estado del chat (texto). La UI lo muestra en un gui_text.
+  int _luaLaureliaStatus(LuaState ls) {
+    ls.pop(0);
+    final s = _luaChatStatus();
+    ls.pushString(s);
+    return 1;
+  }
+
+  int _luaLaureliaIsLoaded(LuaState ls) {
+    ls.pop(0);
+    ls.pushBoolean(laureliaChat!.loaded);
+    return 1;
+  }
+
+  /// Vocabulario del tokenizer (o -1).
+  int _luaLaureliaVocab(LuaState ls) {
+    ls.pop(0);
+    ls.pushInteger(_lastVocab);
+    laureliaChat!.vocabSize().then((v) {
+      _lastVocab = v;
+      onUpdate?.call('laurelia_status', '');
+    });
+    return 1;
+  }
+
+  int _luaLaureliaUnload(LuaState ls) {
+    ls.pop(0);
+    laureliaChat!.unload().then((_) => onUpdate?.call('laurelia_status', ''));
+    return 0;
+  }
+
+  Future<String>? _pendingGen;
+  String _pendingGenId = '';
+  int _lastTokenCount = -1;
+  int _lastVocab = -1;
+
+  /// Texto de estado del chat para mostrar en la UI.
+  String _luaChatStatus() {
+    final c = laureliaChat;
+    if (c == null) return 'Chat no disponible';
+    final base = c.status;
+    final extra = <String>[];
+    if (_lastTokenCount >= 0) extra.add('tokens: $_lastTokenCount');
+    if (_lastVocab > 0) extra.add('vocab: $_lastVocab');
+    if (c.loaded) extra.add('cargado');
+    return extra.isEmpty ? base : '$base | ${extra.join(', ')}';
   }
 
   // ---------------------------------------------------------------- parsing

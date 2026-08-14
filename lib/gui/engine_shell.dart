@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 
+import '../ai/laurelia_chat.dart';
 import '../lua/lua_controller.dart';
 import '../lua/page_model.dart';
 import '../lua/page_registry.dart';
@@ -32,6 +33,7 @@ class _EngineShellState extends State<EngineShell> {
   late final MediaPlayer _mediaPlayer;
   final _urlController = TextEditingController();
   final _controller = LuaController();
+  final _laurelia = LaureliaChat();
 
   PageModel? _page;
   String? _pageName;
@@ -44,6 +46,7 @@ class _EngineShellState extends State<EngineShell> {
     MediaKit.ensureInitialized();
     _mediaPlayer = MediaPlayer();
     _controller.mediaPlayer = _mediaPlayer;
+    _controller.laureliaChat = _laurelia;
     _controller.onUpdate = (_, __) => setState(() {});
     _controller.onNavigate = _loadPageByName;
     _mediaPlayer.onChanged = () {
@@ -51,6 +54,9 @@ class _EngineShellState extends State<EngineShell> {
     };
     _mediaPlayer.onPush = (id, value) {
       _controller.setInputValue(id, value);
+      if (mounted) setState(() {});
+    };
+    _laurelia.onProgress = (_) {
       if (mounted) setState(() {});
     };
     _loadPageByName('demo');
