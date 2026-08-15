@@ -157,6 +157,7 @@ end
     }
     if (laureliaChat != null) {
       _registerSync('laurelia_download', _luaLaureliaDownload);
+      _registerSync('laurelia_download_and_load', _luaLaureliaDownloadAndLoad);
       _registerSync('laurelia_load', _luaLaureliaLoad);
       _registerSync('laurelia_generate', _luaLaureliaGenerate);
       _registerSync('laurelia_count_tokens', _luaLaureliaCountTokens);
@@ -293,6 +294,32 @@ end
       }
       onUpdate?.call('laurelia_status', _values['laurelia_status']!);
       _refreshLaureliaInfo();
+    });
+    return 0;
+  }
+
+  /// Descarga el modelo por HTTP (streaming) y luego lo carga en Rust desde
+  /// disco en una sola acción. El progreso re-renderiza la UI en vivo.
+  int _luaLaureliaDownloadAndLoad(LuaState ls) {
+    ls.pop(0);
+    final chat = laureliaChat!;
+    chat.onProgress = (msg) {
+      _values['laurelia_status'] = msg;
+      onUpdate?.call('laurelia_status', msg);
+    };
+    chat.download().then((ok) {
+      if (!ok) {
+        _values['laurelia_status'] = chat.status;
+        onUpdate?.call('laurelia_status', _values['laurelia_status']!);
+        _refreshLaureliaInfo();
+        return;
+      }
+      chat.load().then((loaded) {
+        _values['laurelia_status'] =
+            loaded ? 'Modelo cargado en Rust. Tocá Generar.' : chat.status;
+        onUpdate?.call('laurelia_status', _values['laurelia_status']!);
+        _refreshLaureliaInfo();
+      });
     });
     return 0;
   }

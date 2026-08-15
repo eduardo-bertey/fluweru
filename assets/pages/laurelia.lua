@@ -31,6 +31,8 @@ gui_button({ text = "Descargar modelo fine (652 MB)", on_click = "descargar_fine
 
 gui_spacer({ space = 8 })
 
+gui_button({ text = "Descargar y cargar en Rust (desde disco)", on_click = "descargar_y_cargar" })
+
 gui_button({ text = "Eliminar modelo base", on_click = "del_base" })
 gui_button({ text = "Eliminar modelo fine", on_click = "del_fine" })
 
@@ -95,6 +97,16 @@ end)
 
 handler("del_fine", function()
   laurelia_delete_model("fine")
+end)
+
+handler("descargar_y_cargar", function()
+  local modelo = engine_get("laurelia_model")
+  if string.find(modelo, "fine") then
+    laurelia_set_model("fine")
+  else
+    laurelia_set_model("base")
+  end
+  laurelia_download_and_load()
 end)
 
 handler("cargar", function()
