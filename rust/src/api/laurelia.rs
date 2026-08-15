@@ -36,7 +36,7 @@ static STATE: Mutex<LaureliaState> = Mutex::new(LaureliaState {
 
 /// Carga tokenizer + checkpoint desde rutas locales (la descarga por HTTP la
 /// hace Dart). Retorna true si tuvo éxito.
-#[flutter_rust_bridge::frb(blocking)]
+#[flutter_rust_bridge::frb]
 pub fn laurelia_load_model(ckpt_path: String, tokenizer_path: String) -> bool {
     if !Path::new(&ckpt_path).exists() {
         return false;
@@ -131,7 +131,7 @@ pub fn laurelia_model_info() -> String {
 }
 
 /// Genera texto a partir de un prompt. Retorna string vacío si no hay modelo.
-#[flutter_rust_bridge::frb(blocking)]
+#[flutter_rust_bridge::frb]
 pub fn laurelia_generate(
     prompt: String,
     max_new_tokens: i64,
