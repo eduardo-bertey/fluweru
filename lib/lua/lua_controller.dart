@@ -526,7 +526,7 @@ end
       final v = _field(-1, k);
       if (v != null) m[k] = v;
     }
-    for (final k in ['bold', 'italic']) {
+    for (final k in ['bold', 'italic', 'multiline']) {
       final v = _field(-1, k);
       if (v != null) m[k] = v;
     }
