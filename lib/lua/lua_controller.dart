@@ -165,6 +165,8 @@ end
       _registerSync('laurelia_vocab', _luaLaureliaVocab);
       _registerSync('laurelia_unload', _luaLaureliaUnload);
       _registerSync('laurelia_info', _luaLaureliaInfo);
+      _registerSync('laurelia_set_model', _luaLaureliaSetModel);
+      _registerSync('laurelia_delete_model', _luaLaureliaDeleteModel);
     }
   }
 
@@ -271,18 +273,84 @@ end
 
   // -------------------------------------------------------------- laurelia
 
-  /// Descarga el modelo por HTTP (async). El progreso re-renderiza la UI.
+  /// Descarga el modelo por HTTP (streaming). El progreso re-renderiza la UI
+  /// en vivo y al terminar escribe el estado real en `laurelia_status`.
   int _luaLaureliaDownload(LuaState ls) {
     ls.pop(0);
-    laureliaChat!.download().then((_) => onUpdate?.call('laurelia_status', ''));
+    final chat = laureliaChat!;
+    chat.onProgress = (msg) {
+      _values['laurelia_status'] = msg;
+      onUpdate?.call('laurelia_status', msg);
+    };
+    _values['laurelia_status'] = 'Descargando…';
+    onUpdate?.call('laurelia_status', 'Descargando…');
+    chat.download().then((ok) {
+      if (ok) {
+        _values['laurelia_status'] =
+            '${chat.modelName} descargado. Tocá "Cargar en Rust".';
+      } else {
+        _values['laurelia_status'] = chat.status;
+      }
+      onUpdate?.call('laurelia_status', _values['laurelia_status']!);
+      _refreshLaureliaInfo();
+    });
     return 0;
   }
 
   /// Carga el modelo descargado en Rust.
   int _luaLaureliaLoad(LuaState ls) {
     ls.pop(0);
-    laureliaChat!.load().then((_) => onUpdate?.call('laurelia_status', ''));
+    final chat = laureliaChat!;
+    chat.onProgress = (msg) {
+      _values['laurelia_status'] = msg;
+      onUpdate?.call('laurelia_status', msg);
+    };
+    _values['laurelia_status'] = 'Cargando en Rust…';
+    onUpdate?.call('laurelia_status', 'Cargando en Rust…');
+    chat.load().then((ok) {
+      _values['laurelia_status'] =
+          ok ? 'Modelo cargado en Rust. Tocá Generar.' : chat.status;
+      onUpdate?.call('laurelia_status', _values['laurelia_status']!);
+      _refreshLaureliaInfo();
+    });
     return 0;
+  }
+
+  /// Cambia el modelo seleccionado (base/fine).
+  int _luaLaureliaSetModel(LuaState ls) {
+    final name = ls.checkString(1) ?? 'base';
+    ls.pop(1);
+    final chat = laureliaChat!;
+    chat.setModel(name).then((_) {
+      _values['laurelia_status'] = 'Modelo seleccionado: ${chat.modelName}';
+      onUpdate?.call('laurelia_status', _values['laurelia_status']!);
+      _refreshLaureliaInfo();
+    });
+    return 0;
+  }
+
+  /// Elimina el modelo indicado (borra su carpeta en disco).
+  int _luaLaureliaDeleteModel(LuaState ls) {
+    final name = ls.checkString(1) ?? '';
+    ls.pop(1);
+    final chat = laureliaChat!;
+    chat.deleteModel(name).then((ok) {
+      _values['laurelia_status'] =
+          ok ? 'Modelo $name eliminado.' : 'Modelo $name: no existe.';
+      onUpdate?.call('laurelia_status', _values['laurelia_status']!);
+      _refreshLaureliaInfo();
+    });
+    return 0;
+  }
+
+  /// Refresca `laurelia_info` (detalle en disco + Rust) sin esperar al usuario.
+  void _refreshLaureliaInfo() {
+    final chat = laureliaChat;
+    if (chat == null) return;
+    chat.detailedStatus().then((s) {
+      _values['laurelia_info'] = s;
+      onUpdate?.call('laurelia_info', s);
+    });
   }
 
   /// Genera texto con el prompt del argumento 1. El resultado queda en
@@ -365,7 +433,12 @@ end
 
   int _luaLaureliaUnload(LuaState ls) {
     ls.pop(0);
-    laureliaChat!.unload().then((_) => onUpdate?.call('laurelia_status', ''));
+    final chat = laureliaChat!;
+    chat.unload().then((_) {
+      _values['laurelia_status'] = 'Modelo liberado.';
+      onUpdate?.call('laurelia_status', 'Modelo liberado.');
+      _refreshLaureliaInfo();
+    });
     return 0;
   }
 

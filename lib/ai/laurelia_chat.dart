@@ -22,8 +22,11 @@ class LaureliaChat {
   static const tok = 'tokenizer.json';
   static const dirName = 'hf_models/laurelia';
 
-  /// Qué checkpoint se usa: base o fine.
-  bool fine = false;
+  /// Modelos disponibles (cada uno vive en su propia carpeta).
+  static const List<String> models = ['base', 'fine'];
+
+  /// Modelo seleccionado: 'base' o 'fine'.
+  String model = 'base';
 
   bool _loaded = false;
   int _downloadedBytes = 0;
@@ -34,12 +37,17 @@ class LaureliaChat {
   bool get loaded => _loaded;
   int get downloadedBytes => _downloadedBytes;
   String? get dirPath => _dirPath;
+  String get modelName => model;
 
-  String _ckpt() => fine ? ckptFine : ckpt;
+  /// Nombre remoto del checkpoint en HF (fine usa 'fine-checkpoint.pt').
+  String get _remoteCkpt => model == 'fine' ? ckptFine : ckpt;
+
+  /// Nombre local del checkpoint (siempre 'checkpoint.pt' en su carpeta).
+  String get _localCkpt => ckpt;
 
   Future<Directory> _dir() async {
     final root = await getApplicationSupportDirectory();
-    final dir = Directory('${root.path}/$dirName');
+    final dir = Directory('${root.path}/$dirName/$model');
     if (!dir.existsSync()) dir.createSync(recursive: true);
     _dirPath = dir.path;
     return dir;
@@ -51,7 +59,7 @@ class LaureliaChat {
   /// Qué archivos faltan (para descargar). Vacío si ya están todos.
   Future<List<String>> _missing() async {
     final missing = <String>[];
-    for (final f in [_ckpt(), tok]) {
+    for (final f in [_localCkpt, tok]) {
       if (!await File(await _path(f)).exists()) missing.add(f);
     }
     return missing;
@@ -63,32 +71,88 @@ class LaureliaChat {
     return true;
   }
 
-  /// Descarga por HTTP los archivos que falten (checkpoint + tokenizer).
-  /// Reusa el estado guardado si ya están en disco.
+  /// Cambia el modelo seleccionado. Si había otro cargado en Rust, lo libera.
+  Future<void> setModel(String name) async {
+    if (!models.contains(name)) return;
+    if (name != model) {
+      if (_loaded) await unload();
+      model = name;
+      _progress('Modelo seleccionado: $name. Descargá o cargá.');
+    }
+  }
+
+  /// Borra la carpeta del modelo indicado (libera RAM si estaba cargado).
+  /// Retorna true si el modelo existía y fue eliminado.
+  Future<bool> deleteModel(String name) async {
+    if (!models.contains(name)) return false;
+    final root = await getApplicationSupportDirectory();
+    final dir = Directory('${root.path}/$dirName/$name');
+    if (!dir.existsSync()) {
+      _progress('Modelo $name: no existe (nada que borrar).');
+      return false;
+    }
+    if (name == model && _loaded) await unload();
+    try {
+      await dir.delete(recursive: true);
+    } catch (_) {}
+    _progress('Modelo $name eliminado.');
+    return !dir.existsSync();
+  }
+
+  /// Descarga por HTTP (streaming a disco) los archivos que falten.
+  /// Muestra progreso en vivo (% de cada archivo). Reusa lo ya descargado.
   Future<bool> download() async {
     _progress('Descargando…');
-    var missing = await _missing();
-    while (missing.isNotEmpty) {
-      final name = missing.first;
-      _progress('Descargando $name…');
-      final res = await http.get(Uri.parse(baseUrl + name));
-      if (res.statusCode != 200) {
-        _progress('Error HTTP ${res.statusCode} al descargar $name');
-        return false;
+    final client = http.Client();
+    try {
+      var missing = await _missing();
+      while (missing.isNotEmpty) {
+        final localName = missing.first;
+        final remoteName = localName == _localCkpt ? _remoteCkpt : tok;
+        final target = File(await _path(localName));
+        final req = http.Request('GET', Uri.parse(baseUrl + remoteName));
+        final res = await client.send(req);
+        if (res.statusCode != 200) {
+          _progress('Error HTTP ${res.statusCode} al descargar $remoteName');
+          return false;
+        }
+        final total = res.contentLength ?? 0;
+        var written = 0;
+        final sink = target.openWrite();
+        try {
+          await for (final chunk in res.stream) {
+            sink.add(chunk);
+            written += chunk.length;
+            _downloadedBytes += chunk.length;
+            if (total > 0) {
+              final pct = (written * 100 / total).toStringAsFixed(0);
+              _progress('$remoteName: ${_fmt(written)} / ${_fmt(total)} ($pct%)');
+            } else {
+              _progress('$remoteName: ${_fmt(written)}…');
+            }
+          }
+          await sink.flush();
+        } finally {
+          await sink.close();
+        }
+        missing = await _missing();
       }
-      _downloadedBytes += res.bodyBytes.length;
-      await File(await _path(name)).writeAsBytes(res.bodyBytes);
-      missing = await _missing();
+      _progress('Modelo descargado. Tocá Cargar.');
+      return true;
+    } catch (e) {
+      _progress('Error al descargar: $e');
+      return false;
+    } finally {
+      client.close();
     }
-    _progress('Modelo descargado. Tocá Cargar.');
-    return true;
   }
 
   /// Estado real en disco: tamaño de cada archivo y si falta alguno.
   Future<Map<String, Object?>> diskInfo() async {
     final dir = await _dir();
-    final files = [_ckpt(), tok];
+    final files = [_localCkpt, tok];
     final info = <String, Object?>{
+      'model': model,
       'dir': dir.path,
       'files': <Map<String, Object?>>[],
       'total_bytes': 0,
@@ -120,6 +184,7 @@ class LaureliaChat {
     final info = await diskInfo();
     final files = info['files'] as List;
     final parts = <String>[];
+    parts.add('Modelo: ${info['model']}');
     parts.add('Dir: ${info['dir']}');
     for (final f in files.cast<Map<String, Object?>>()) {
       parts.add('${f['name']}: ${_fmt((f['size'] as int))}');
@@ -134,16 +199,16 @@ class LaureliaChat {
   /// Carga tokenizer + checkpoint en Rust.
   Future<bool> load() async {
     if ((await _missing()).isNotEmpty) {
-      _progress('Primero descargá el modelo.');
+      _progress('Primero descargá el modelo ($model).');
       return false;
     }
     _progress('Cargando modelo…');
     final ok = await laureliaLoadModel(
-      ckptPath: await _path(_ckpt()),
+      ckptPath: await _path(_localCkpt),
       tokenizerPath: await _path(tok),
     );
     _loaded = ok;
-    _progress(ok ? 'Modelo cargado. Tocá Generar.' : 'Error al cargar. Mirá la consola.');
+    _progress(ok ? 'Modelo cargado en Rust. Tocá Generar.' : 'Error al cargar. Mirá la consola.');
     return ok;
   }
 
@@ -191,6 +256,7 @@ class LaureliaChat {
   /// Serializa los datos de estado para mostrarlos en Lua.
   String stateJson() {
     return jsonEncode({
+      'model': model,
       'loaded': _loaded,
       'downloaded_bytes': _downloadedBytes,
       'status': _status,

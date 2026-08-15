@@ -19,7 +19,23 @@ gui_rect({
 
 gui_spacer({ space = 10 })
 
-gui_button({ text = "Descargar modelo (HTTP)", on_click = "descargar" })
+gui_text({ id = "laurelia_model", text = "Modelo seleccionado: base", font = { size = 14, bold = true } })
+
+gui_button({ text = "Seleccionar modelo base", on_click = "set_base" })
+gui_button({ text = "Seleccionar modelo fine", on_click = "set_fine" })
+
+gui_spacer({ space = 8 })
+
+gui_button({ text = "Descargar modelo base (652 MB)", on_click = "descargar_base" })
+gui_button({ text = "Descargar modelo fine (652 MB)", on_click = "descargar_fine" })
+
+gui_spacer({ space = 8 })
+
+gui_button({ text = "Eliminar modelo base", on_click = "del_base" })
+gui_button({ text = "Eliminar modelo fine", on_click = "del_fine" })
+
+gui_spacer({ space = 8 })
+
 gui_button({ text = "Cargar en Rust", on_click = "cargar" })
 gui_button({ text = "Liberar modelo", on_click = "liberar" })
 
@@ -38,11 +54,11 @@ gui_input({ id = "prompt", label = "Prompt", value = "Hola, como estas?" })
 
 gui_button({ text = "Generar", on_click = "generar" })
 
-gui_text({ id = "laurelia_out", text = "Resultado aparecera aqui", font = { size = 14 } })
+gui_text({ id = "laurelia_out", text = "Resultado aparecera aqui", font = { size = 14 }, multiline = true })
 
 gui_divider({ height = 24 })
 
-gui_text({ id = "laurelia_status", text = "Estado: listo", font = { size = 13 } })
+gui_text({ id = "laurelia_status", text = "Estado: listo", font = { size = 13 }, multiline = true })
 
 gui_button({ text = "Contar tokens del prompt", on_click = "contar" })
 gui_text({ id = "token_count", text = "Tokens: -", font = { size = 13 } })
@@ -51,8 +67,34 @@ gui_divider({ height = 24 })
 
 gui_button({ text = "< Volver a la pagina 1 (Rust)", on_click = "volver" })
 
-handler("descargar", function()
+handler("set_base", function()
+  laurelia_set_model("base")
+  engine_set("laurelia_model", "Modelo seleccionado: base")
+end)
+
+handler("set_fine", function()
+  laurelia_set_model("fine")
+  engine_set("laurelia_model", "Modelo seleccionado: fine")
+end)
+
+handler("descargar_base", function()
+  laurelia_set_model("base")
+  engine_set("laurelia_model", "Modelo seleccionado: base")
   laurelia_download()
+end)
+
+handler("descargar_fine", function()
+  laurelia_set_model("fine")
+  engine_set("laurelia_model", "Modelo seleccionado: fine")
+  laurelia_download()
+end)
+
+handler("del_base", function()
+  laurelia_delete_model("base")
+end)
+
+handler("del_fine", function()
+  laurelia_delete_model("fine")
 end)
 
 handler("cargar", function()
@@ -85,3 +127,5 @@ end)
 handler("volver", function()
   navigate("demo")
 end)
+
+laurelia_info()
