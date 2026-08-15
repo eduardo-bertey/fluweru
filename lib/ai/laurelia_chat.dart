@@ -28,10 +28,12 @@ class LaureliaChat {
   bool _loaded = false;
   int _downloadedBytes = 0;
   String? _status;
+  String? _dirPath;
 
   String get status => _status ?? '';
   bool get loaded => _loaded;
   int get downloadedBytes => _downloadedBytes;
+  String? get dirPath => _dirPath;
 
   String _ckpt() => fine ? ckptFine : ckpt;
 
@@ -39,6 +41,7 @@ class LaureliaChat {
     final root = await getApplicationSupportDirectory();
     final dir = Directory('${root.path}/$dirName');
     if (!dir.existsSync()) dir.createSync(recursive: true);
+    _dirPath = dir.path;
     return dir;
   }
 
@@ -79,6 +82,53 @@ class LaureliaChat {
     }
     _progress('Modelo descargado. Tocá Cargar.');
     return true;
+  }
+
+  /// Estado real en disco: tamaño de cada archivo y si falta alguno.
+  Future<Map<String, Object?>> diskInfo() async {
+    final dir = await _dir();
+    final files = [_ckpt(), tok];
+    final info = <String, Object?>{
+      'dir': dir.path,
+      'files': <Map<String, Object?>>[],
+      'total_bytes': 0,
+      'complete': false,
+    };
+    var total = 0;
+    final fileInfos = <Map<String, Object?>>[];
+    for (final f in files) {
+      final file = File('${dir.path}/$f');
+      final size = file.existsSync() ? file.lengthSync() : -1;
+      if (size > 0) total += size;
+      fileInfos.add({'name': f, 'size': size});
+    }
+    info['files'] = fileInfos;
+    info['total_bytes'] = total;
+    info['complete'] = fileInfos.every((f) => (f['size'] as int) > 0);
+    return info;
+  }
+
+  String _fmt(int bytes) {
+    if (bytes < 0) return 'no';
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
+  /// Texto de estado detallado para mostrar en la GUI de Lua.
+  Future<String> detailedStatus() async {
+    final info = await diskInfo();
+    final files = info['files'] as List;
+    final parts = <String>[];
+    parts.add('Dir: ${info['dir']}');
+    for (final f in files.cast<Map<String, Object?>>()) {
+      parts.add('${f['name']}: ${_fmt((f['size'] as int))}');
+    }
+    final complete = info['complete'] as bool;
+    parts.add('Total: ${_fmt(info['total_bytes'] as int)}');
+    parts.add('Descarga: ${complete ? 'completa' : 'INCOMPLETA'}');
+    parts.add('Rust: ${_loaded ? 'modelo cargado' : 'no cargado'}');
+    return parts.join('\n');
   }
 
   /// Carga tokenizer + checkpoint en Rust.

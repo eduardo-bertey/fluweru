@@ -23,6 +23,15 @@ gui_button({ text = "Descargar modelo (HTTP)", on_click = "descargar" })
 gui_button({ text = "Cargar en Rust", on_click = "cargar" })
 gui_button({ text = "Liberar modelo", on_click = "liberar" })
 
+gui_button({ text = "Ver estado (donde, cuantos MB, cargado?)", on_click = "info" })
+
+gui_text({
+  id = "laurelia_info",
+  text = "Estado: toca 'Ver estado'",
+  font = { size = 12 },
+  multiline = true,
+})
+
 gui_divider({ height = 24 })
 
 gui_input({ id = "prompt", label = "Prompt", value = "Hola, como estas?" })
@@ -52,6 +61,10 @@ end)
 
 handler("liberar", function()
   laurelia_unload()
+end)
+
+handler("info", function()
+  laurelia_info()
 end)
 
 handler("generar", function()

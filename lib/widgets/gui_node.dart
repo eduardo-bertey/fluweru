@@ -19,6 +19,7 @@ typedef NodeStyle = ({
   GuiFont? font,
   String? color,
   String? onClick,
+  bool multiline,
 });
 
 /// Nodo de la GUI: modelo puro (sin dependencias de Flutter) que describe
@@ -63,5 +64,6 @@ abstract class GuiNode {
         ),
         color: m['color'] as String?,
         onClick: m['on_click'] as String?,
+        multiline: m['multiline'] == true,
       );
 }

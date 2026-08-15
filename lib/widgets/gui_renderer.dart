@@ -53,7 +53,13 @@ class GuiRenderer {
     );
     return _applyLayout(
       n,
-      Text(display, style: style, textAlign: _textAlign(s.align)),
+      Text(
+        display,
+        style: style,
+        textAlign: _textAlign(s.align),
+        maxLines: s.multiline ? null : 1,
+        overflow: s.multiline ? null : TextOverflow.ellipsis,
+      ),
     );
   }
 

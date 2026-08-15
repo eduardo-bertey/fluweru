@@ -164,6 +164,7 @@ end
       _registerSync('laurelia_is_loaded', _luaLaureliaIsLoaded);
       _registerSync('laurelia_vocab', _luaLaureliaVocab);
       _registerSync('laurelia_unload', _luaLaureliaUnload);
+      _registerSync('laurelia_info', _luaLaureliaInfo);
     }
   }
 
@@ -290,11 +291,22 @@ end
     final prompt = ls.checkString(1) ?? '';
     final maxTokens = ls.checkInteger(2) ?? 50;
     ls.pop(2);
-    _values['laurelia_out'] = 'Generando…';
-    onUpdate?.call('laurelia_out', 'Generando…');
-    laureliaChat!.generate(prompt, maxNewTokens: maxTokens).then((s) {
-      _values['laurelia_out'] = s;
-      onUpdate?.call('laurelia_out', s);
+    final chat = laureliaChat;
+    if (chat == null) {
+      _values['laurelia_out'] = 'Chat no disponible';
+      onUpdate?.call('laurelia_out', 'Chat no disponible');
+      return 0;
+    }
+    if (!chat.loaded) {
+      _values['laurelia_out'] = 'Primero tocá "Cargar en Rust".';
+      onUpdate?.call('laurelia_out', 'Primero tocá "Cargar en Rust".');
+      return 0;
+    }
+    _values['laurelia_out'] = 'Generando… (puede tardar)';
+    onUpdate?.call('laurelia_out', 'Generando… (puede tardar)');
+    chat.generate(prompt, maxNewTokens: maxTokens).then((s) {
+      _values['laurelia_out'] = s.isEmpty ? 'Generación vacía (¿modelo cargado?).' : s;
+      onUpdate?.call('laurelia_out', _values['laurelia_out']!);
     });
     return 0;
   }
@@ -317,6 +329,20 @@ end
     ls.pop(0);
     final s = _luaChatStatus();
     ls.pushString(s);
+    return 1;
+  }
+
+  /// Info detallada: ruta, tamaño de archivos, si descarga completa y si el
+  /// modelo está cargado en Rust. Escribe el resultado en `laurelia_info`.
+  int _luaLaureliaInfo(LuaState ls) {
+    ls.pop(0);
+    _values['laurelia_info'] = 'Leyendo disco…';
+    onUpdate?.call('laurelia_info', _values['laurelia_info']!);
+    laureliaChat!.detailedStatus().then((s) {
+      _values['laurelia_info'] = s;
+      onUpdate?.call('laurelia_info', s);
+    });
+    ls.pushString(_values['laurelia_info']!);
     return 1;
   }
 
